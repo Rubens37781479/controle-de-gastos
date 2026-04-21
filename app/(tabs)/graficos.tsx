@@ -72,7 +72,7 @@ export default function GraficosScreen() {
         ) : (
           <>
             <Text style={styles.totalValue}>{formatCurrency(totalSpent)}</Text>
-            <Text style={styles.totalLabel}>Total no periodo (inclui streaming estimado)</Text>
+            <Text style={styles.totalLabel}>Total no periodo (inclui streaming estimado!!!)</Text>
 
             <View style={styles.categoryList}>
               {categoryBreakdown.map((item) => {

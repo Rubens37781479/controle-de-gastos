@@ -9,7 +9,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -28,11 +28,11 @@ export default function GraficosScreen() {
     setPeriod,
   } = useFinance();
 
-  const periodLabelMap = {
-    '7d': 'Últimos 7 dias',
-    '30d': 'Últimos 30 dias',
-    '180d': 'Últimos 6 meses',
-    '365d': 'Último ano',
+  const periodLabelMap: Record<Period, string> = {
+    '7d': 'Ultimos 7 dias',
+    '30d': 'Ultimos 30 dias',
+    '180d': 'Ultimos 6 meses',
+    '365d': 'Ultimo ano',
   };
 
   const filters: { label: string; value: Period }[] = [
@@ -42,11 +42,6 @@ export default function GraficosScreen() {
     { label: '1A', value: '365d' },
   ];
 
-  if (!onboardingCompleted) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  // 🔥 escalas
   const maxCategoryValue =
     categoryBreakdown.length > 0
       ? Math.max(...categoryBreakdown.map((item) => item.value), 1)
@@ -54,38 +49,62 @@ export default function GraficosScreen() {
 
   const maxMonthlyValue =
     monthlyBars.length > 0
-      ? Math.max(...monthlyBars.map((m) => m.total)) * 1.3
+      ? Math.max(...monthlyBars.map((item) => item.total), 1) * 1.3
       : 1;
 
-  // ✅ refs seguros (evita erro quando muda tamanho)
-  const animatedValues = useRef<Animated.Value[]>([]);
-  const animatedCategoryValues = useRef<Animated.Value[]>([]);
+  const animatedValues = useMemo(
+    () => monthlyBars.map(() => new Animated.Value(0)),
+    [monthlyBars]
+  );
 
-  // 🔥 recria valores quando mudar tamanho
+  const animatedCategoryValues = useMemo(
+    () => categoryBreakdown.map(() => new Animated.Value(0)),
+    [categoryBreakdown]
+  );
+
   useEffect(() => {
-    animatedValues.current = monthlyBars.map(() => new Animated.Value(0));
-    animateBars('up');
-  }, [monthlyBars]);
+    const animations = animatedValues.map((anim, index) => {
+      const value = monthlyBars[index]?.total ?? 0;
 
-  useEffect(() => {
-    animatedCategoryValues.current = categoryBreakdown.map(
-      () => new Animated.Value(0)
-    );
-    animateCategories('in');
-  }, [categoryBreakdown]);
-
-  // 🔥 anima barras verticais
-  const animateBars = (direction: 'up' | 'down', callback?: () => void) => {
-    const animations = animatedValues.current.map((anim, index) => {
-      let toValue = 0;
-
-      if (direction === 'up') {
-        const value = monthlyBars[index]?.total || 0;
-        toValue =
-          maxMonthlyValue > 0
+      return Animated.timing(anim, {
+        toValue:
+          value > 0 && maxMonthlyValue > 0
             ? Math.max((value / maxMonthlyValue) * 100, 5)
-            : 0;
-      }
+            : 0,
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      });
+    });
+
+    Animated.stagger(80, animations).start();
+  }, [animatedValues, monthlyBars, maxMonthlyValue]);
+
+  useEffect(() => {
+    const animations = animatedCategoryValues.map((anim, index) => {
+      const value = categoryBreakdown[index]?.value ?? 0;
+
+      return Animated.timing(anim, {
+        toValue:
+          value > 0 && maxCategoryValue > 0
+            ? (value / maxCategoryValue) * 100
+            : 0,
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      });
+    });
+
+    Animated.stagger(60, animations).start();
+  }, [animatedCategoryValues, categoryBreakdown, maxCategoryValue]);
+
+  const animateBars = (direction: 'up' | 'down', callback?: () => void) => {
+    const animations = animatedValues.map((anim, index) => {
+      const value = monthlyBars[index]?.total ?? 0;
+      const toValue =
+        direction === 'up' && value > 0 && maxMonthlyValue > 0
+          ? Math.max((value / maxMonthlyValue) * 100, 5)
+          : 0;
 
       return Animated.timing(anim, {
         toValue,
@@ -98,18 +117,13 @@ export default function GraficosScreen() {
     Animated.stagger(80, animations).start(() => callback?.());
   };
 
-  // 🔥 anima categorias
   const animateCategories = (direction: 'in' | 'out', callback?: () => void) => {
-    const animations = animatedCategoryValues.current.map((anim, index) => {
-      let toValue = 0;
-
-      if (direction === 'in') {
-        const value = categoryBreakdown[index]?.value || 0;
-        toValue =
-          maxCategoryValue > 0
-            ? (value / maxCategoryValue) * 100
-            : 0;
-      }
+    const animations = animatedCategoryValues.map((anim, index) => {
+      const value = categoryBreakdown[index]?.value ?? 0;
+      const toValue =
+        direction === 'in' && value > 0 && maxCategoryValue > 0
+          ? (value / maxCategoryValue) * 100
+          : 0;
 
       return Animated.timing(anim, {
         toValue,
@@ -122,6 +136,10 @@ export default function GraficosScreen() {
     Animated.stagger(60, animations).start(() => callback?.());
   };
 
+  if (!onboardingCompleted) {
+    return <Redirect href="/(tabs)" />;
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Graficos de Gastos</Text>
@@ -129,7 +147,6 @@ export default function GraficosScreen() {
         Veja onde vai o dinheiro e quanto sobra do seu salario.
       </Text>
 
-      {/* CARD */}
       <View style={[styles.card, styles.highlightCard]}>
         <Text style={styles.cardTitle}>Saldo livre para gastar</Text>
         <Text style={styles.freeValue}>{formatCurrency(freeToSpend)}</Text>
@@ -144,7 +161,6 @@ export default function GraficosScreen() {
         )}
       </View>
 
-      {/* CATEGORIAS */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Distribuicao por categoria</Text>
 
@@ -156,7 +172,7 @@ export default function GraficosScreen() {
 
             <View style={styles.categoryList}>
               {categoryBreakdown.map((item, index) => {
-                const anim = animatedCategoryValues.current[index];
+                const anim = animatedCategoryValues[index];
 
                 return (
                   <View key={item.name} style={styles.categoryRow}>
@@ -191,7 +207,6 @@ export default function GraficosScreen() {
         )}
       </View>
 
-      {/* FILTROS */}
       <View style={styles.filters}>
         {filters.map((item) => (
           <TouchableOpacity
@@ -214,20 +229,19 @@ export default function GraficosScreen() {
         ))}
       </View>
 
-      {/* EVOLUÇÃO */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>
-          Evolução ({periodLabelMap[period]})
+          Evolucao ({periodLabelMap[period]})
         </Text>
 
         <View style={styles.monthlyChart}>
           {monthlyBars.map((item, index) => {
-            const anim = animatedValues.current[index];
+            const anim = animatedValues[index];
 
             return (
               <View key={item.key} style={styles.barColumn}>
                 <Text style={styles.barValue}>
-                  {item.total > 0 ? formatCurrency(item.total) : '—'}
+                  {item.total > 0 ? formatCurrency(item.total) : '-'}
                 </Text>
 
                 <View style={styles.barTrack}>

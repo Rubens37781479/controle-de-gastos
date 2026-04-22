@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { trintaDias } from '@/services/gastosServices';
 import { adicionarGasto } from '@/services/gastosServices';
-import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 export type StreamingPlanTier = 'barato' | 'medio' | 'caro';
 
@@ -13,11 +13,18 @@ export type Expense = {
   createdAt: number | Timestamp;
 };
 
-function getDate(value: number | any): Date {
-  if (value?.toDate) {
-    return value.toDate(); // Firebase Timestamp
+function getDate(value: number | Timestamp): Date {
+  if (typeof value === 'number') {
+    return new Date(value);
   }
-  return new Date(value); // number
+
+  return value.toDate();
+}
+
+function startOfDay(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 }
 
 export type Period = '7d' | '30d' | '180d' | '365d';
@@ -37,7 +44,6 @@ const TIER_FACTOR: Record<StreamingPlanTier, number> = {
   caro: 1.32,
 };
 
-/** Valores base mensais aproximados (R$) por servico */
 const SERVICE_BASE_BRL: Record<string, number> = {
   Netflix: 45,
   'Prime Video': 15,
@@ -54,7 +60,9 @@ const ALL_SERVICE_KEYS = Object.keys(SERVICE_BASE_BRL);
 export function parseMoneyInput(raw: string): number {
   const trimmed = raw.trim();
   if (!trimmed) return 0;
-  const noThousands = trimmed.includes(',') ? trimmed.replace(/\./g, '').replace(',', '.') : trimmed.replace(/,/g, '');
+  const noThousands = trimmed.includes(',')
+    ? trimmed.replace(/\./g, '').replace(',', '.')
+    : trimmed.replace(/,/g, '');
   const n = parseFloat(noThousands.replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
@@ -68,8 +76,8 @@ function estimateStreamingMonthly(services: string[], tier: StreamingPlanTier | 
   if (services.includes(allOption)) {
     totalBase = ALL_SERVICE_KEYS.reduce((sum, key) => sum + (SERVICE_BASE_BRL[key] ?? 0), 0) * 0.92;
   } else {
-    for (const s of services) {
-      totalBase += SERVICE_BASE_BRL[s] ?? 32;
+    for (const service of services) {
+      totalBase += SERVICE_BASE_BRL[service] ?? 32;
     }
   }
 
@@ -77,9 +85,9 @@ function estimateStreamingMonthly(services: string[], tier: StreamingPlanTier | 
 }
 
 function normalizeCategory(cat: string): string {
-  const c = cat.trim().toLowerCase();
-  if (!c) return 'Outros';
-  if (c.includes('stream')) return STREAMING_CATEGORY;
+  const normalized = cat.trim().toLowerCase();
+  if (!normalized) return 'Outros';
+  if (normalized.includes('stream')) return STREAMING_CATEGORY;
   return cat.trim() || 'Outros';
 }
 
@@ -93,7 +101,6 @@ type OnboardingPayload = {
 
 type FinanceContextValue = {
   onboardingCompleted: boolean;
-  /** URI da foto de perfil (galeria/camera); usada tambem no icone da aba. */
   profileAvatarUri: string | null;
   setProfileAvatarUri: (uri: string | null) => void;
   occupation: string;
@@ -150,7 +157,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const streamingEstimatedMonthly = useMemo(
     () => (usesStreaming ? estimateStreamingMonthly(streamingServices, streamingPlanTier) : 0),
-    [usesStreaming, streamingServices, streamingPlanTier],
+    [usesStreaming, streamingServices, streamingPlanTier]
   );
 
   const setOnboarding = useCallback((data: OnboardingPayload) => {
@@ -169,23 +176,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       amount: Math.round(input.amount * 100) / 100,
       category: normalizeCategory(input.category),
       description: input.description.trim(),
-      createdAt: Date.now(), // UI imediata
+      createdAt: Date.now(),
     };
 
     try {
-      // salva no Firebase
       await adicionarGasto({
         amount: newExpense.amount,
         category: newExpense.category,
         description: newExpense.description,
       });
 
-      // atualiza local (sem esperar reload)
       setExpenses((prev) => [
         ...prev,
         {
           ...newExpense,
-          id: `${Date.now()}`, // id temporário
+          id: `${Date.now()}`,
           createdAt: Date.now(),
         },
       ]);
@@ -198,11 +203,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     const now = new Date();
     const days = PERIOD_DAYS[period];
 
-    return expenses.filter((e) => {
-      const date = getDate(e.createdAt);
-
+    return expenses.filter((expense) => {
+      const date = getDate(expense.createdAt);
       const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-
       return diff <= days;
     });
   }, [expenses, period]);
@@ -214,28 +217,28 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       map.set(STREAMING_CATEGORY, streamingEstimatedMonthly);
     }
 
-    for (const e of filteredExpenses) {
-      const key = e.category;
-      map.set(key, (map.get(key) ?? 0) + e.amount);
+    for (const expense of filteredExpenses) {
+      const key = expense.category;
+      map.set(key, (map.get(key) ?? 0) + expense.amount);
     }
 
-    const entries = [...map.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    const breakdown = entries.map(([name, value], i) => ({
+    const entries = [...map.entries()]
+      .filter(([, value]) => value > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    const breakdown = entries.map(([name, value], index) => ({
       name,
       value: Math.round(value * 100) / 100,
-      color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+      color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
     }));
 
-    const spent = entries.reduce((s, [, v]) => s + v, 0);
+    const spent = entries.reduce((sum, [, value]) => sum + value, 0);
     const free = Math.max(0, Math.round((monthlyIncome - spent) * 100) / 100);
-
-    const now = new Date();
-    const bars: { key: string; label: string; total: number }[] = [];
 
     const groupedMap = new Map<string, { total: number; label: string }>();
 
-    for (const e of filteredExpenses) {
-      const date = getDate(e.createdAt);
+    for (const expense of filteredExpenses) {
+      const date = getDate(expense.createdAt);
 
       let key = '';
       let label = '';
@@ -247,21 +250,53 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         key = date.toISOString().slice(0, 10);
         label = date.getDate().toString();
       }
-      
+
       const current = groupedMap.get(key);
 
       groupedMap.set(key, {
-        total: (current?.total ?? 0) + e.amount,
+        total: (current?.total ?? 0) + expense.amount,
         label,
       });
     }
 
-    for (const [key, value] of groupedMap.entries()) {
-      bars.push({
-        key,
-        label: value.label,
-        total: Math.round(value.total * 100) / 100,
-      });
+    const bars: { key: string; label: string; total: number }[] = [];
+
+    if (period === '180d' || period === '365d') {
+      const monthCount = period === '180d' ? 6 : 12;
+      const currentMonth = new Date();
+      currentMonth.setDate(1);
+      currentMonth.setHours(0, 0, 0, 0);
+
+      for (let index = monthCount - 1; index >= 0; index -= 1) {
+        const date = new Date(currentMonth);
+        date.setMonth(currentMonth.getMonth() - index);
+
+        const key = `${date.getFullYear()}-${date.getMonth()}`;
+        const existing = groupedMap.get(key);
+
+        bars.push({
+          key,
+          label: date.toLocaleDateString('pt-BR', { month: 'short' }),
+          total: Math.round((existing?.total ?? 0) * 100) / 100,
+        });
+      }
+    } else {
+      const days = PERIOD_DAYS[period];
+      const today = startOfDay(new Date());
+
+      for (let index = days - 1; index >= 0; index -= 1) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - index);
+
+        const key = date.toISOString().slice(0, 10);
+        const existing = groupedMap.get(key);
+
+        bars.push({
+          key,
+          label: date.getDate().toString(),
+          total: Math.round((existing?.total ?? 0) * 100) / 100,
+        });
+      }
     }
 
     bars.sort((a, b) => a.key.localeCompare(b.key));
@@ -272,7 +307,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       freeToSpend: free,
       monthlyBars: bars,
     };
-  }, [filteredExpenses, monthlyIncome, streamingEstimatedMonthly, period]);
+  }, [filteredExpenses, monthlyIncome, period, streamingEstimatedMonthly]);
 
   const value: FinanceContextValue = {
     onboardingCompleted,
@@ -296,9 +331,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     period,
     setPeriod,
   };
-  
-  console.log('EXPENSES:', expenses);
-  console.log('FILTERED EXPENSES:', filteredExpenses);
+
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
 
@@ -309,4 +342,3 @@ export function useFinance() {
   }
   return ctx;
 }
-

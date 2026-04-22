@@ -2,18 +2,16 @@ import { parseMoneyInput, useFinance } from '@/contexts/finance-context';
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { adicionarGasto } from '@/services/gastosServices'
-import { serverTimestamp } from 'firebase/firestore';
 
 export default function GastosScreen() {
   const { addExpense, onboardingCompleted } = useFinance();
+  const [description, setDescription] = useState('');
+  const [amountRaw, setAmountRaw] = useState('');
+  const [category, setCategory] = useState('');
 
   if (!onboardingCompleted) {
     return <Redirect href="/(tabs)" />;
   }
-  const [description, setDescription] = useState('');
-  const [amountRaw, setAmountRaw] = useState('');
-  const [category, setCategory] = useState('');
 
   const handleSave = async () => {
     const amount = parseMoneyInput(amountRaw);

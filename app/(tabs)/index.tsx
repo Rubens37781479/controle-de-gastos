@@ -5,10 +5,6 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, V
 
 export default function HomeScreen() {
   const { setOnboarding, onboardingCompleted } = useFinance();
-
-  if (onboardingCompleted) {
-    return <Redirect href="/(tabs)/gastos" />;
-  }
   const [occupation, setOccupation] = useState('');
   const [income, setIncome] = useState('');
   const [usesStreaming, setUsesStreaming] = useState<'sim' | 'nao' | null>(null);
@@ -20,6 +16,10 @@ export default function HomeScreen() {
       setStreamingPlanTier(null);
     }
   }, [selectedStreamingServices.length]);
+
+  if (onboardingCompleted) {
+    return <Redirect href="/(tabs)/gastos" />;
+  }
 
   const streamingServices = [
     'Assino todos os servicos',

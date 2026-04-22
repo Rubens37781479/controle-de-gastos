@@ -54,7 +54,7 @@ export default function PerfilScreen() {
     setMonthlyIncome,
   } = useFinance();
 
-  const [name] = useState('Usuario');
+  const [name] = useState('Perfil');
   const [occupation, setOccupation] = useState(ctxOccupation || 'Designer');
   const [salary, setSalary] = useState(monthlyIncome > 0 ? String(monthlyIncome) : '3500');
 

@@ -169,7 +169,7 @@ export default function GraficosScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Distribuicao por categoria</Text>
+        <Text style={styles.cardTitle}>Distribuicao de gastos</Text>
 
         {categoryBreakdown.length === 0 ? (
           <Text style={styles.emptyText}>Sem dados ainda.</Text>

@@ -33,7 +33,7 @@ function resizeWebImageFile(file: File): Promise<string> {
         const context = canvas.getContext('2d');
 
         if (!context) {
-          reject(new Error('Canvas indisponivel'));
+          reject(new Error('Canvas indisponível'));
           return;
         }
 
@@ -73,7 +73,7 @@ function getAssetPersistableUri(asset: ImagePicker.ImagePickerAsset): string | n
   return asset.uri ?? null;
 }
 
-/** Na web o expo-image-picker usa dispatchEvent no input; navegadores exigem input.click() no gesto do usuario. */
+/** Na web o expo-image-picker usa dispatchEvent no input; navegadores exigem input.click() no gesto do usuário. */
 function pickImageFromWebFileInput(onPicked: (uri: string) => void) {
   if (typeof document === 'undefined') return;
 
@@ -94,7 +94,7 @@ function pickImageFromWebFileInput(onPicked: (uri: string) => void) {
         .then(onPicked)
         .catch((error) => {
           console.error('Erro ao preparar foto do perfil:', error);
-          Alert.alert('Erro', 'Nao foi possivel preparar a foto escolhida.');
+          Alert.alert('Erro', 'Não foi possível preparar a foto escolhida.');
         });
     }
     cleanup();
@@ -139,7 +139,7 @@ export default function PerfilScreen() {
     void (async () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permissao negada', 'Precisamos de acesso a galeria para escolher a foto.');
+        Alert.alert('Permissão negada', 'Precisamos de acesso à galeria para escolher a foto.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -163,7 +163,7 @@ export default function PerfilScreen() {
     void (async () => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permissao negada', 'Precisamos de acesso a camera para tirar a foto.');
+        Alert.alert('Permissão negada', 'Precisamos de acesso à câmera para tirar a foto.');
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -187,7 +187,7 @@ export default function PerfilScreen() {
       setCtxOccupation(occupation.trim()),
       setMonthlyIncome(parseMoneyInput(salary)),
     ]);
-    Alert.alert('Salvo', 'Profissao e salario atualizados.');
+    Alert.alert('Salvo', 'Profissão e salário atualizados.');
   };
 
   const handleLogout = async () => {
@@ -226,32 +226,32 @@ export default function PerfilScreen() {
           </Pressable>
           {Platform.OS !== 'web' && (
             <Pressable onPress={takePhoto} style={styles.photoButtonSecondary}>
-              <Text style={styles.photoButtonSecondaryText}>Camera</Text>
+            <Text style={styles.photoButtonSecondaryText}>Câmera</Text>
             </Pressable>
           )}
         </View>
 
-        <Text style={styles.label}>Profissao</Text>
+        <Text style={styles.label}>Profissão</Text>
         <TextInput
           value={occupation}
           onChangeText={setOccupation}
-          placeholder="Digite sua profissao"
+          placeholder="Digite sua profissão"
           placeholderTextColor="#6D7F79"
           style={styles.input}
         />
 
-        <Text style={styles.label}>Salario</Text>
+        <Text style={styles.label}>Salário</Text>
         <TextInput
           value={salary}
           onChangeText={setSalary}
-          placeholder="Digite seu salario"
+          placeholder="Digite seu salário"
           keyboardType="numeric"
           placeholderTextColor="#6D7F79"
           style={styles.input}
         />
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Salvar alteracoes</Text>
+          <Text style={styles.saveButtonText}>Salvar alterações</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

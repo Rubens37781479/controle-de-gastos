@@ -114,10 +114,11 @@ export function parseMoneyInput(raw: string): number {
 function estimateStreamingMonthly(services: string[], tier: StreamingPlanTier | null): number {
   if (!tier || services.length === 0) return 0;
 
-  const allOption = 'Assino todos os servicos';
+  const allOption = 'Assino todos os serviços';
+  const legacyAllOption = 'Assino todos os servicos';
   let totalBase = 0;
 
-  if (services.includes(allOption)) {
+  if (services.includes(allOption) || services.includes(legacyAllOption)) {
     totalBase = ALL_SERVICE_KEYS.reduce((sum, key) => sum + (SERVICE_BASE_BRL[key] ?? 0), 0) * 0.92;
   } else {
     for (const service of services) {
@@ -132,6 +133,10 @@ function normalizeCategory(cat: string): string {
   const normalized = cat.trim().toLowerCase();
   if (!normalized) return 'Outros';
   if (normalized.includes('stream')) return STREAMING_CATEGORY;
+  if (normalized === 'alimentacao' || normalized === 'alimento') return 'Alimentação';
+  if (normalized === 'conta de agua') return 'Conta de água';
+  if (normalized === 'veiculos' || normalized === 'veiculo') return 'Veículos';
+  if (normalized === 'emergencia') return 'Emergência';
   return cat.trim() || 'Outros';
 }
 
@@ -295,7 +300,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     try {
       await salvarPerfilFinanceiro({ occupation: trimmedValue });
     } catch (error) {
-      console.error('Erro ao salvar profissao:', error);
+      console.error('Erro ao salvar profissão:', error);
     }
   }, []);
 
@@ -305,7 +310,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     try {
       await salvarPerfilFinanceiro({ monthlyIncome: normalizedValue });
     } catch (error) {
-      console.error('Erro ao salvar salario:', error);
+      console.error('Erro ao salvar salário:', error);
     }
   }, []);
 
@@ -463,7 +468,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
 
     for (const expense of activeMonthExpenses) {
-      const key = expense.category;
+      const key = normalizeCategory(expense.category);
       map.set(key, (map.get(key) ?? 0) + expense.amount);
     }
 

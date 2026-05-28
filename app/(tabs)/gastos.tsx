@@ -9,7 +9,7 @@ export default function GastosScreen() {
   const [amountRaw, setAmountRaw] = useState('');
   const [category, setCategory] = useState('');
   const [showCategoryOptions, setShowCategoryOptions] = useState(false);
-  const categoryOptions = ['Alimentacao', 'Conta de luz', 'Conta de agua', 'Streaming', 'Games', 'Veiculos'];
+  const categoryOptions = ['Alimentação', 'Conta de luz', 'Conta de água', 'Streaming', 'Games', 'Veículos'];
 
   if (onboardingLoading) {
     return null;
@@ -23,7 +23,7 @@ export default function GastosScreen() {
     const amount = parseMoneyInput(amountRaw);
 
     if (amount <= 0) {
-      Alert.alert('Valor invalido', 'Informe um valor maior que zero.');
+      Alert.alert('Valor inválido', 'Informe um valor maior que zero.');
       return;
     }
 
@@ -52,7 +52,7 @@ export default function GastosScreen() {
       return;
     }
 
-    Alert.alert('Gasto salvo', 'O valor foi incluido nos seus graficos.');
+    Alert.alert('Gasto salvo', 'O valor foi incluído nos seus gráficos.');
   };
 
   return (
@@ -61,7 +61,7 @@ export default function GastosScreen() {
       <Text style={styles.subtitle}>Registre um novo gasto para acompanhar no seu controle.</Text>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Descricao</Text>
+        <Text style={styles.label}>Descrição</Text>
         <TextInput
           value={description}
           onChangeText={setDescription}
@@ -101,7 +101,7 @@ export default function GastosScreen() {
                 </Text>
                 <Text style={styles.categorySelectorHint}>
                   {showCategoryOptions
-                    ? 'Escolha uma opcao abaixo.'
+                    ? 'Escolha uma opção abaixo.'
                     : 'Toque para abrir as categorias.'}
                 </Text>
               </View>
@@ -143,7 +143,7 @@ export default function GastosScreen() {
           </View>
         </View>
         <Text style={styles.hint}>
-          Use &quot;Streaming&quot; para somar ao que voce ja informou nos servicos.
+          Use &quot;Streaming&quot; para somar ao que você já informou nos serviços.
         </Text>
 
         <TouchableOpacity style={styles.button} onPress={handleSave}>

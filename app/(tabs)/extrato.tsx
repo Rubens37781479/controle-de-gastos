@@ -20,24 +20,79 @@ function formatMonthYear(date: Date): string {
   return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
 }
 
-function formatDay(date: Date): string {
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+function getDayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
+
+function formatDayHeader(date: Date): string {
+  const day = date.toLocaleDateString('pt-BR', { day: '2-digit' });
+  const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+  return `${day} - ${weekday}`;
+}
+
+function formatCategoryName(category: string): string {
+  const normalized = category.trim().toLowerCase();
+  if (normalized === 'alimentacao' || normalized === 'alimento') return 'Alimentação';
+  if (normalized === 'conta de agua') return 'Conta de água';
+  if (normalized === 'veiculos' || normalized === 'veiculo') return 'Veículos';
+  if (normalized === 'emergencia') return 'Emergência';
+  return category;
+}
+
+type ExpenseWithDate = Expense & { parsedDate: Date };
+
+type DailyExpenseGroup = {
+  key: string;
+  label: string;
+  total: number;
+  expenses: ExpenseWithDate[];
+};
 
 type MonthlyGroup = {
   key: string;
   label: string;
   total: number;
-  expenses: (Expense & { parsedDate: Date })[];
+  expenses: ExpenseWithDate[];
+  dailyGroups: DailyExpenseGroup[];
   paymentRecords: PaymentRecord[];
 };
+
+function groupExpensesByDay(expenses: ExpenseWithDate[]): DailyExpenseGroup[] {
+  const grouped = new Map<string, DailyExpenseGroup>();
+
+  for (const expense of expenses) {
+    const key = getDayKey(expense.parsedDate);
+    const current = grouped.get(key);
+
+    if (!current) {
+      grouped.set(key, {
+        key,
+        label: formatDayHeader(expense.parsedDate),
+        total: expense.amount,
+        expenses: [expense],
+      });
+      continue;
+    }
+
+    current.total += expense.amount;
+    current.expenses.push(expense);
+  }
+
+  return [...grouped.values()]
+    .map((group) => ({
+      ...group,
+      total: Math.round(group.total * 100) / 100,
+      expenses: [...group.expenses].sort((a, b) => b.parsedDate.getTime() - a.parsedDate.getTime()),
+    }))
+    .sort((a, b) => b.key.localeCompare(a.key));
+}
 
 export default function ExtratoScreen() {
   const { onboardingCompleted, onboardingLoading, expenses, paymentRecords } = useFinance();
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
 
   const monthlyStatement = useMemo<MonthlyGroup[]>(() => {
-    const grouped = new Map<string, MonthlyGroup>();
+    const grouped = new Map<string, Omit<MonthlyGroup, 'dailyGroups'>>();
 
     for (const expense of expenses) {
       const parsedDate = getExpenseDate(expense.createdAt);
@@ -80,14 +135,19 @@ export default function ExtratoScreen() {
     }
 
     return [...grouped.values()]
-      .map((group) => ({
-        ...group,
-        total: Math.round(group.total * 100) / 100,
-        expenses: [...group.expenses].sort(
+      .map((group) => {
+        const sortedExpenses = [...group.expenses].sort(
           (a, b) => b.parsedDate.getTime() - a.parsedDate.getTime(),
-        ),
-        paymentRecords: [...group.paymentRecords].sort((a, b) => b.createdAt - a.createdAt),
-      }))
+        );
+
+        return {
+          ...group,
+          total: Math.round(group.total * 100) / 100,
+          expenses: sortedExpenses,
+          dailyGroups: groupExpensesByDay(sortedExpenses),
+          paymentRecords: [...group.paymentRecords].sort((a, b) => b.createdAt - a.createdAt),
+        };
+      })
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [expenses, paymentRecords]);
 
@@ -115,7 +175,7 @@ export default function ExtratoScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} style={styles.scroll}>
       <Text style={styles.title}>Extrato</Text>
-      <Text style={styles.subtitle}>Veja por mes e ano tudo o que foi salvo no seu controle.</Text>
+      <Text style={styles.subtitle}>Veja por mês e ano tudo o que foi salvo no seu controle.</Text>
 
       {monthlyStatement.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -149,7 +209,7 @@ export default function ExtratoScreen() {
                     const isBonus = record.status === 'bonus';
                     const isLess = record.status === 'menos';
                     const title = isBonus
-                      ? 'Pagamento com bonificacao'
+                      ? 'Pagamento com bonificação'
                       : isLess
                         ? 'Pagamento recebido a menos'
                         : 'Pagamento recebido corretamente';
@@ -160,11 +220,11 @@ export default function ExtratoScreen() {
                         : formatCurrency(record.incomeForMonth);
 
                     return (
-                      <View key={record.id} style={styles.expenseRow}>
+                      <View key={record.id} style={styles.paymentRow}>
                         <View style={styles.expenseTextWrap}>
                           <Text style={styles.expenseDescription}>{title}</Text>
                           <Text style={styles.expenseMeta}>
-                            Salario do mes: {formatCurrency(record.incomeForMonth)}
+                            Salário do mês: {formatCurrency(record.incomeForMonth)}
                           </Text>
                         </View>
                         <Text
@@ -179,15 +239,21 @@ export default function ExtratoScreen() {
                     );
                   })}
 
-                  {month.expenses.map((expense) => (
-                    <View key={expense.id} style={styles.expenseRow}>
-                      <View style={styles.expenseTextWrap}>
-                        <Text style={styles.expenseDescription}>{expense.description}</Text>
-                        <Text style={styles.expenseMeta}>
-                          {expense.category} - {formatDay(expense.parsedDate)}
-                        </Text>
+                  {month.dailyGroups.map((dayGroup) => (
+                    <View key={dayGroup.key} style={styles.dayGroup}>
+                      <View style={styles.dayDivider}>
+                        <Text style={styles.dayDividerText}>{dayGroup.label}</Text>
                       </View>
-                      <Text style={styles.expenseAmount}>{formatCurrency(expense.amount)}</Text>
+
+                      {dayGroup.expenses.map((expense) => (
+                        <View key={expense.id} style={styles.expenseRow}>
+                          <View style={styles.expenseTextWrap}>
+                            <Text style={styles.expenseDescription}>{expense.description}</Text>
+                            <Text style={styles.expenseMeta}>{formatCategoryName(expense.category)}</Text>
+                          </View>
+                          <Text style={styles.expenseAmount}>{formatCurrency(expense.amount)}</Text>
+                        </View>
+                      ))}
                     </View>
                   ))}
                 </View>
@@ -282,6 +348,31 @@ const styles = StyleSheet.create({
   expenseList: {
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F7',
+  },
+  dayGroup: {
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F7',
+  },
+  dayDivider: {
+    alignItems: 'center',
+    backgroundColor: '#E7F3EE',
+    borderRadius: 8,
+    marginTop: 12,
+    paddingVertical: 5,
+  },
+  dayDividerText: {
+    color: '#0B2E23',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'lowercase',
   },
   expenseRow: {
     flexDirection: 'row',

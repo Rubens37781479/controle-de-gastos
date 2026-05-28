@@ -34,11 +34,11 @@ export default function CreateAccountScreen() {
       console.log(error);
 
       if (error.code === 'auth/email-already-in-use') {
-        alert('Este email ja esta em uso. Tente outro.');
+        alert('Este e-mail já está em uso. Tente outro.');
       } else if (error.code === 'auth/invalid-email') {
-        alert('Email invalido. Verifique o formato e tente novamente.');
+        alert('E-mail inválido. Verifique o formato e tente novamente.');
       } else if (error.code === 'auth/weak-password') {
-        alert('A senha e muito fraca. Use pelo menos 6 caracteres.');
+        alert('A senha é muito fraca. Use pelo menos 6 caracteres.');
       } else {
         alert('Erro ao criar conta. Tente novamente.');
       }
@@ -61,7 +61,7 @@ export default function CreateAccountScreen() {
           <Text style={styles.appName}>BudGet</Text>
         </View>
 
-        <Text style={styles.title}>Cadastrar usuario</Text>
+        <Text style={styles.title}>Cadastrar usuário</Text>
 
         <View style={styles.formArea}>
           <View style={styles.goldBand} />
@@ -77,7 +77,7 @@ export default function CreateAccountScreen() {
 
             <Text style={styles.label}>E-mail</Text>
             <TextInput
-              placeholder="Digite seu email"
+              placeholder="Digite seu e-mail"
               placeholderTextColor="#6E7B75"
               keyboardType="email-address"
               autoCapitalize="none"

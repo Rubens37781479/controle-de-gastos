@@ -20,7 +20,7 @@ function getPerfilRef() {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Usuario nao autenticado');
+    throw new Error('Usuário não autenticado');
   }
 
   return doc(db, 'users', user.uid, 'perfil', 'financeiro');
@@ -30,7 +30,7 @@ function getLegacyUserRef() {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Usuario nao autenticado');
+    throw new Error('Usuário não autenticado');
   }
 
   return doc(db, 'users', user.uid);
@@ -91,7 +91,7 @@ export const salvarFotoPerfil = async (uri: string): Promise<string> => {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Usuario nao autenticado');
+    throw new Error('Usuário não autenticado');
   }
 
   if (uri.startsWith('http://') || uri.startsWith('https://')) {

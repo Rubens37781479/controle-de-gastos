@@ -46,10 +46,10 @@ export default function GraficosScreen() {
     freeToSpendRatio <= 0.1 ? '#C62828' : freeToSpendRatio <= 0.3 ? '#B28704' : '#0B2E23';
 
   const periodLabelMap: Record<Period, string> = {
-    '7d': 'Ultimos 7 dias',
-    '30d': 'Ultimos 30 dias',
-    '180d': 'Ultimos 6 meses',
-    '365d': 'Ultimo ano',
+    '7d': 'Últimos 7 dias',
+    '30d': 'Últimos 30 dias',
+    '180d': 'Últimos 6 meses',
+    '365d': 'Último ano',
   };
 
   const filters: { label: string; value: Period }[] = [
@@ -83,16 +83,16 @@ export default function GraficosScreen() {
   const topPeriod = [...monthlyBars].sort((a, b) => b.total - a.total)[0];
   const periodRangeLabel =
     monthlyBars.length > 0
-      ? `Mostrando ${monthlyBars[0].label} ate ${monthlyBars[monthlyBars.length - 1].label}`
-      : 'Nenhum periodo carregado';
+      ? `Mostrando ${monthlyBars[0].label} até ${monthlyBars[monthlyBars.length - 1].label}`
+      : 'Nenhum período carregado';
   const insightItems = [
     topCategory ? `Categoria que mais pesa: ${topCategory.name}` : 'Sem categoria dominante ainda',
     topPeriod && topPeriod.total > 0
-      ? `Maior gasto no periodo: ${topPeriod.label} (${formatCurrency(topPeriod.total)})`
-      : 'Nenhum gasto registrado no periodo selecionado',
+      ? `Maior gasto no período: ${topPeriod.label} (${formatCurrency(topPeriod.total)})`
+      : 'Nenhum gasto registrado no período selecionado',
     currentMonthIncome > 0
-      ? `Voce gastou ${spentPercent}% do salario deste mes`
-      : 'Informe um salario para comparar seus gastos',
+      ? `Você gastou ${spentPercent}% do salário deste mês`
+      : 'Informe um salário para comparar seus gastos',
   ];
 
   const maxCategoryValue =
@@ -186,18 +186,18 @@ export default function GraficosScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} style={styles.scroll}>
-      <Text style={styles.title}>Graficos de Gastos</Text>
-      <Text style={styles.subtitle}>Resumo do mes atual: {activeMonthLabel}.</Text>
+      <Text style={styles.title}>Gráficos de Gastos</Text>
+      <Text style={styles.subtitle}>Resumo do mês atual: {activeMonthLabel}.</Text>
 
       <View style={[styles.card, styles.highlightCard]}>
         <Text style={styles.cardTitle}>Saldo livre de {activeMonthLabel}</Text>
         {freeToSpend < 0 && (
-          <Text style={styles.negativeAlert}>Voce nao possui saldo para gastar!!!</Text>
+          <Text style={styles.negativeAlert}>Você não possui saldo para gastar!!!</Text>
         )}
         <Text style={[styles.freeValue, { color: freeToSpendColor }]}>{formatCurrency(freeToSpend)}</Text>
         <View style={styles.summaryGrid}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Salario do mes atual</Text>
+            <Text style={styles.summaryLabel}>Salário do mês atual</Text>
             <Text style={styles.summaryValue}>{formatCurrency(currentMonthIncome)}</Text>
           </View>
           <View style={styles.summaryItem}>
@@ -211,7 +211,7 @@ export default function GraficosScreen() {
 
         {paymentAdjustment && paymentAdjustment.status !== 'correto' && (
           <Text style={styles.streamingNote}>
-            Salario base: {formatCurrency(monthlyIncome)}
+            Salário base: {formatCurrency(monthlyIncome)}
           </Text>
         )}
 
@@ -224,22 +224,22 @@ export default function GraficosScreen() {
 
       <View style={[styles.card, styles.salaryUsageCard, { borderColor: progressColor }]}>
         <View style={styles.cardHeaderLine}>
-          <Text style={styles.cardTitle}>Uso do salario</Text>
+          <Text style={styles.cardTitle}>Uso do salário</Text>
           <Text style={[styles.percentBadge, { color: progressColor }]}>{spentPercent}%</Text>
         </View>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: progressWidth, backgroundColor: progressColor }]} />
         </View>
         <Text style={styles.metaLine}>
-          Quanto mais perto de 100%, menor e a margem para novos gastos neste mes.
+          Quanto mais perto de 100%, menor é a margem para novos gastos neste mês.
         </Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Distribuicao dos gastos de {activeMonthLabel}</Text>
+        <Text style={styles.cardTitle}>Distribuição dos gastos de {activeMonthLabel}</Text>
 
         {displayedCategoryBreakdown.length === 0 ? (
-          <Text style={styles.emptyText}>Nenhum gasto registrado neste mes ainda.</Text>
+          <Text style={styles.emptyText}>Nenhum gasto registrado neste mês ainda.</Text>
         ) : (
           <>
             <Text style={styles.totalValue}>{formatCurrency(totalSpent)}</Text>
@@ -300,12 +300,12 @@ export default function GraficosScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>
-          Evolucao ({periodLabelMap[period]})
+          Evolução ({periodLabelMap[period]})
         </Text>
         <Text style={styles.metaLine}>{periodRangeLabel}</Text>
 
         {!hasEvolutionData ? (
-          <Text style={styles.emptyText}>Nenhum gasto registrado nesse periodo ainda.</Text>
+          <Text style={styles.emptyText}>Nenhum gasto registrado nesse período ainda.</Text>
         ) : (
           <View style={styles.chartScrollWrap}>
             {showLeftIndicator && (
@@ -363,7 +363,7 @@ export default function GraficosScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Insights do mes</Text>
+        <Text style={styles.cardTitle}>Insights do mês</Text>
         <View style={styles.insightList}>
           {insightItems.map((item) => {
             const [label, ...resultParts] = item.split(': ');

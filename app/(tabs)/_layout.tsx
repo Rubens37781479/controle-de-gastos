@@ -51,7 +51,7 @@ function TabsLayoutInner() {
       <Tabs.Screen
         name="graficos"
         options={{
-          title: 'Graficos',
+          title: 'Gráficos',
           href: !onboardingCompleted ? null : undefined,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}

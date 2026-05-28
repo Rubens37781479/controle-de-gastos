@@ -232,7 +232,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           setUsesStreaming(perfil.usesStreaming);
           setStreamingServices(perfil.streamingServices);
           setStreamingPlanTier(perfil.streamingPlanTier);
-          setOnboardingCompleted(perfil.onboardingCompleted);
+          setOnboardingCompleted(perfil.onboardingCompleted || gastos.length > 0 || pagamentos.length > 0);
         } else {
           setProfileAvatarUriState(null);
           setOccupation('');
@@ -240,7 +240,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           setUsesStreaming(false);
           setStreamingServices([]);
           setStreamingPlanTier(null);
-          setOnboardingCompleted(false);
+          setOnboardingCompleted(gastos.length > 0 || pagamentos.length > 0);
         }
 
         setExpenses(gastos as Expense[]);

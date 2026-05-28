@@ -5,7 +5,16 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpa
 import { logout } from '@/services/authService';
 
 export default function HomeScreen() {
-  const { setOnboarding, onboardingCompleted, onboardingLoading } = useFinance();
+  const {
+    setOnboarding,
+    onboardingCompleted,
+    onboardingLoading,
+    occupation: savedOccupation,
+    monthlyIncome: savedMonthlyIncome,
+    usesStreaming: savedUsesStreaming,
+    streamingServices: savedStreamingServices,
+    streamingPlanTier: savedStreamingPlanTier,
+  } = useFinance();
   const [occupation, setOccupation] = useState('');
   const [income, setIncome] = useState('');
   const [usesStreaming, setUsesStreaming] = useState<'sim' | 'nao' | null>(null);
@@ -18,6 +27,35 @@ export default function HomeScreen() {
       setStreamingPlanTier(null);
     }
   }, [selectedStreamingServices.length]);
+
+  useEffect(() => {
+    if (onboardingLoading || onboardingCompleted) return;
+
+    if (!occupation && savedOccupation) {
+      setOccupation(savedOccupation);
+    }
+
+    if (!income && savedMonthlyIncome > 0) {
+      setIncome(String(savedMonthlyIncome).replace('.', ','));
+    }
+
+    if (usesStreaming === null) {
+      setUsesStreaming(savedUsesStreaming ? 'sim' : 'nao');
+      setSelectedStreamingServices(savedUsesStreaming ? savedStreamingServices : []);
+      setStreamingPlanTier(savedUsesStreaming ? savedStreamingPlanTier : null);
+    }
+  }, [
+    income,
+    onboardingCompleted,
+    onboardingLoading,
+    occupation,
+    savedMonthlyIncome,
+    savedOccupation,
+    savedStreamingPlanTier,
+    savedStreamingServices,
+    savedUsesStreaming,
+    usesStreaming,
+  ]);
 
   if (onboardingLoading) {
     return null;
@@ -66,8 +104,8 @@ export default function HomeScreen() {
   const canConfirm =
     !savingOnboarding &&
     hasRequiredFinancialInfo &&
-    usesStreaming !== null &&
-    (usesStreaming === 'nao' ||
+    (usesStreaming === null ||
+      usesStreaming === 'nao' ||
       (usesStreaming === 'sim' &&
         selectedStreamingServices.length > 0 &&
         streamingPlanTier !== null));
@@ -85,8 +123,14 @@ export default function HomeScreen() {
         streamingPlanTier: usesStreaming === 'sim' ? streamingPlanTier : null,
       });
       router.replace('/(tabs)/gastos');
-    } catch {
-      Alert.alert('Erro', 'Não foi possível salvar seu resumo financeiro. Tente novamente.');
+    } catch (error: any) {
+      console.error('Erro ao salvar onboarding:', error);
+      Alert.alert(
+        'Erro',
+        error?.message
+          ? `Nao foi possivel salvar seu resumo financeiro: ${error.message}`
+          : 'Nao foi possivel salvar seu resumo financeiro. Tente novamente.',
+      );
     } finally {
       setSavingOnboarding(false);
     }
@@ -215,7 +259,7 @@ export default function HomeScreen() {
           <Text style={styles.confirmHint}>Informe com que trabalha e quanto recebe por mes para continuar.</Text>
         )}
         {hasRequiredFinancialInfo && usesStreaming === null && (
-          <Text style={styles.confirmHint}>Responda sobre streaming para habilitar a confirmacao.</Text>
+          <Text style={styles.confirmHint}>Streaming e opcional. Se nao responder, vamos considerar como nao.</Text>
         )}
         {hasRequiredFinancialInfo && usesStreaming === 'sim' && !canConfirm && (
           <Text style={styles.confirmHint}>Selecione os servicos e o plano para confirmar.</Text>

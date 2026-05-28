@@ -66,6 +66,18 @@ function startOfDay(date: Date): Date {
   return copy;
 }
 
+function getActiveDayInMonth(monthStart: Date): Date {
+  const now = new Date();
+  const lastDay = new Date(
+    monthStart.getFullYear(),
+    monthStart.getMonth() + 1,
+    0,
+  ).getDate();
+  const date = new Date(monthStart);
+  date.setDate(Math.min(now.getDate(), lastDay));
+  return date;
+}
+
 function getWeekdayInitial(date: Date): string {
   const weekdayInitials = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
   return weekdayInitials[date.getDay()] ?? '';
@@ -360,13 +372,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const getActiveMonthTimestamp = useCallback(() => {
     const now = new Date();
-    const lastDay = new Date(
-      activeMonthStart.getFullYear(),
-      activeMonthStart.getMonth() + 1,
-      0,
-    ).getDate();
-    const date = new Date(activeMonthStart);
-    date.setDate(Math.min(now.getDate(), lastDay));
+    const date = getActiveDayInMonth(activeMonthStart);
     date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
     return date.getTime();
   }, [activeMonthStart]);
@@ -447,16 +453,23 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   ), [currentMonthKey, expenses]);
 
   const filteredExpenses = useMemo(() => {
-    const now = new Date(activeMonthStart);
-    now.setMonth(activeMonthStart.getMonth() + 1);
-    now.setDate(0);
+    const now =
+      period === '7d'
+        ? getActiveDayInMonth(activeMonthStart)
+        : new Date(activeMonthStart);
+
+    if (period !== '7d') {
+      now.setMonth(activeMonthStart.getMonth() + 1);
+      now.setDate(0);
+    }
+
     now.setHours(23, 59, 59, 999);
     const days = PERIOD_DAYS[period];
 
     return expenses.filter((expense) => {
       const date = getDate(expense.createdAt);
       const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-      return diff <= days;
+      return diff >= 0 && diff < days;
     });
   }, [activeMonthStart, expenses, period]);
 
@@ -563,22 +576,22 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           });
         }
       } else {
-      const days = PERIOD_DAYS[period];
-      const today = startOfDay(new Date(activeMonthStart.getFullYear(), activeMonthStart.getMonth() + 1, 0));
+        const days = PERIOD_DAYS[period];
+        const today = startOfDay(getActiveDayInMonth(activeMonthStart));
 
-      for (let index = days - 1; index >= 0; index -= 1) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - index);
+        for (let index = days - 1; index >= 0; index -= 1) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - index);
 
-        const key = date.toISOString().slice(0, 10);
-        const existing = groupedMap.get(key);
+          const key = date.toISOString().slice(0, 10);
+          const existing = groupedMap.get(key);
 
-        bars.push({
-          key,
-          label: period === '7d' ? getWeekdayInitial(date) : date.getDate().toString(),
-          total: Math.round((existing?.total ?? 0) * 100) / 100,
-        });
-      }
+          bars.push({
+            key,
+            label: period === '7d' ? getWeekdayInitial(date) : date.getDate().toString(),
+            total: Math.round((existing?.total ?? 0) * 100) / 100,
+          });
+        }
       }
     }
 

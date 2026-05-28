@@ -251,13 +251,18 @@ export default function ExtratoScreen() {
           <Text style={styles.emptyText}>Adicione gastos ou confirme um pagamento para montar o extrato mensal.</Text>
         </View>
       ) : (
-        statementRows.map((row) => {
+        statementRows.map((row, index) => {
+          const nextRow = statementRows[index + 1];
+          const isSectionEnd = !nextRow || nextRow.type === 'month';
+
           if (row.type === 'month') {
+            const hasDetails = row.month.paymentRecords.length > 0 || row.month.dailyGroups.length > 0;
+
             return (
               <Pressable
                 key={row.key}
                 onPress={() => setExpandedMonthKey((current) => (current === row.month.key ? null : row.month.key))}
-                style={[styles.monthHeader, row.expanded && styles.monthHeaderExpanded]}>
+                style={[styles.monthHeader, row.expanded && hasDetails && styles.monthHeaderExpanded]}>
                 <View style={styles.monthHeaderText}>
                   <Text style={styles.monthLabel}>{row.month.label}</Text>
                   <Text style={styles.monthMeta}>
@@ -273,7 +278,11 @@ export default function ExtratoScreen() {
           }
 
           if (row.type === 'payment') {
-            return <View key={row.key} style={styles.cardRow}>{renderPaymentRow(row.record)}</View>;
+            return (
+              <View key={row.key} style={[styles.cardRow, isSectionEnd && styles.cardRowLast]}>
+                {renderPaymentRow(row.record)}
+              </View>
+            );
           }
 
           if (row.type === 'day') {
@@ -287,7 +296,7 @@ export default function ExtratoScreen() {
           }
 
           return (
-            <View key={row.key} style={styles.cardRow}>
+            <View key={row.key} style={[styles.cardRow, isSectionEnd && styles.cardRowLast]}>
               <View style={styles.expenseRow}>
                 <View style={styles.expenseTextWrap}>
                   <Text style={styles.expenseDescription}>{row.expense.description}</Text>
@@ -394,6 +403,12 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderColor: '#D9DEE8',
     paddingHorizontal: 16,
+  },
+  cardRowLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    marginBottom: 4,
   },
   paymentRow: {
     flexDirection: 'row',

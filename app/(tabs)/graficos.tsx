@@ -2,6 +2,7 @@ import { Period, useFinance } from '@/contexts/finance-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 import {
+  DimensionValue,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -72,7 +73,7 @@ export default function GraficosScreen() {
 
   const spentRatio = currentMonthIncome > 0 ? totalSpent / currentMonthIncome : 0;
   const spentPercent = Math.round(spentRatio * 100);
-  const progressWidth = `${Math.min(spentRatio, 1) * 100}%`;
+  const progressWidth: DimensionValue = `${Math.min(spentRatio, 1) * 100}%`;
   const progressColor = spentRatio >= 0.85 ? '#C62828' : spentRatio >= 0.6 ? '#B28704' : '#0B2E23';
   const hasEvolutionData = monthlyBars.some((item) => item.total > 0);
   const canScrollChart = chartContentWidth > chartViewportWidth + 4;
@@ -518,4 +519,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  insightStrong: { fontWeight: '700' },
 });

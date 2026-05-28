@@ -12,7 +12,7 @@ export default function LoginScreen() {
 
   const entrarNoApp = async () => {
     if (!email.trim() || !password.trim()) {
-      alert('Preencha email e senha.');
+      alert('Preencha e-mail e senha.');
       return;
     }
 
@@ -22,11 +22,11 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       if (error.code === 'auth/invalid-credential') {
-        alert('Email ou senha invalidos.');
+        alert('E-mail ou senha inválidos.');
       } else if (error.code === 'auth/invalid-email') {
-        alert('Email invalido.');
+        alert('E-mail inválido.');
       } else {
-        alert('Nao foi possivel entrar. Tente novamente.');
+        alert('Não foi possível entrar. Tente novamente.');
       }
     } finally {
       setLoading(false);
@@ -56,7 +56,7 @@ export default function LoginScreen() {
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="Seu email"
+              placeholder="Seu e-mail"
               placeholderTextColor="#6E7B75"
               keyboardType="email-address"
               autoCapitalize="none"

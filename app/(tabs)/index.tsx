@@ -5,7 +5,16 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpa
 import { logout } from '@/services/authService';
 
 export default function HomeScreen() {
-  const { setOnboarding, onboardingCompleted, onboardingLoading } = useFinance();
+  const {
+    setOnboarding,
+    onboardingCompleted,
+    onboardingLoading,
+    occupation: savedOccupation,
+    monthlyIncome: savedMonthlyIncome,
+    usesStreaming: savedUsesStreaming,
+    streamingServices: savedStreamingServices,
+    streamingPlanTier: savedStreamingPlanTier,
+  } = useFinance();
   const [occupation, setOccupation] = useState('');
   const [income, setIncome] = useState('');
   const [usesStreaming, setUsesStreaming] = useState<'sim' | 'nao' | null>(null);
@@ -19,6 +28,35 @@ export default function HomeScreen() {
     }
   }, [selectedStreamingServices.length]);
 
+  useEffect(() => {
+    if (onboardingLoading || onboardingCompleted) return;
+
+    if (!occupation && savedOccupation) {
+      setOccupation(savedOccupation);
+    }
+
+    if (!income && savedMonthlyIncome > 0) {
+      setIncome(String(savedMonthlyIncome).replace('.', ','));
+    }
+
+    if (usesStreaming === null) {
+      setUsesStreaming(savedUsesStreaming ? 'sim' : 'nao');
+      setSelectedStreamingServices(savedUsesStreaming ? savedStreamingServices : []);
+      setStreamingPlanTier(savedUsesStreaming ? savedStreamingPlanTier : null);
+    }
+  }, [
+    income,
+    onboardingCompleted,
+    onboardingLoading,
+    occupation,
+    savedMonthlyIncome,
+    savedOccupation,
+    savedStreamingPlanTier,
+    savedStreamingServices,
+    savedUsesStreaming,
+    usesStreaming,
+  ]);
+
   if (onboardingLoading) {
     return null;
   }
@@ -28,7 +66,7 @@ export default function HomeScreen() {
   }
 
   const streamingServices = [
-    'Assino todos os servicos',
+    'Assino todos os serviços',
     'Netflix',
     'Prime Video',
     'HBO',
@@ -45,7 +83,7 @@ export default function HomeScreen() {
   const hasRequiredFinancialInfo = hasOccupation && hasMonthlyIncome;
 
   const toggleStreamingService = (service: string) => {
-    const allServicesOption = 'Assino todos os servicos';
+    const allServicesOption = 'Assino todos os serviços';
 
     if (service === allServicesOption) {
       setSelectedStreamingServices((current) =>
@@ -66,8 +104,8 @@ export default function HomeScreen() {
   const canConfirm =
     !savingOnboarding &&
     hasRequiredFinancialInfo &&
-    usesStreaming !== null &&
-    (usesStreaming === 'nao' ||
+    (usesStreaming === null ||
+      usesStreaming === 'nao' ||
       (usesStreaming === 'sim' &&
         selectedStreamingServices.length > 0 &&
         streamingPlanTier !== null));
@@ -85,8 +123,14 @@ export default function HomeScreen() {
         streamingPlanTier: usesStreaming === 'sim' ? streamingPlanTier : null,
       });
       router.replace('/(tabs)/gastos');
-    } catch {
-      Alert.alert('Erro', 'Não foi possível salvar seu resumo financeiro. Tente novamente.');
+    } catch (error: any) {
+      console.error('Erro ao salvar onboarding:', error);
+      Alert.alert(
+        'Erro',
+        error?.message
+          ? `Não foi possível salvar seu resumo financeiro: ${error.message}`
+          : 'Não foi possível salvar seu resumo financeiro. Tente novamente.',
+      );
     } finally {
       setSavingOnboarding(false);
     }
@@ -112,7 +156,7 @@ export default function HomeScreen() {
           style={styles.input}
         />
 
-        <Text style={styles.label}>Quanto recebe por mes?</Text>
+        <Text style={styles.label}>Quanto recebe por mês?</Text>
         <TextInput
           value={income}
           onChangeText={setIncome}
@@ -122,7 +166,7 @@ export default function HomeScreen() {
           style={styles.input}
         />
 
-        <Text style={styles.label}>Assina algum servico de streaming?</Text>
+        <Text style={styles.label}>Assina algum serviço de streaming?</Text>
         <View style={styles.choiceRow}>
           <Pressable
             onPress={() => setUsesStreaming('sim')}
@@ -136,19 +180,19 @@ export default function HomeScreen() {
               setStreamingPlanTier(null);
             }}
             style={[styles.choiceButton, usesStreaming === 'nao' && styles.choiceButtonActive]}>
-            <Text style={[styles.choiceText, usesStreaming === 'nao' && styles.choiceTextActive]}>Nao</Text>
+            <Text style={[styles.choiceText, usesStreaming === 'nao' && styles.choiceTextActive]}>Não</Text>
           </Pressable>
         </View>
 
         {usesStreaming === 'sim' && (
           <View style={styles.streamingCard}>
             <View style={styles.streamingCardBanner}>
-              <Text style={styles.streamingCardBannerText}>SERVICOS DE STREAMING</Text>
+              <Text style={styles.streamingCardBannerText}>SERVIÇOS DE STREAMING</Text>
             </View>
 
             <View style={styles.streamingCardBody}>
               <View style={styles.streamingCardHeader}>
-                <Text style={styles.streamingTitle}>Escolha os servicos que o cliente assina</Text>
+                <Text style={styles.streamingTitle}>Escolha os serviços que o cliente assina</Text>
                 <Text style={styles.streamingCounter}>{selectedStreamingServices.length} marcado(s)</Text>
               </View>
               <Text style={styles.streamingHint}>Selecione uma ou mais opcoes para continuar.</Text>
@@ -177,13 +221,13 @@ export default function HomeScreen() {
 
             {selectedStreamingServices.length > 0 && (
               <View style={styles.planCard}>
-                <Text style={styles.planTitle}>Qual plano voce costuma assinar?</Text>
-                <Text style={styles.planHint}>Considerando o preco dos servicos que voce marcou.</Text>
+                <Text style={styles.planTitle}>Qual plano você costuma assinar?</Text>
+                <Text style={styles.planHint}>Considerando o preço dos serviços que você marcou.</Text>
                 <View style={styles.planRow}>
                   {(
                     [
                       { key: 'barato' as const, label: 'Mais barato' },
-                      { key: 'medio' as const, label: 'Medio' },
+                      { key: 'medio' as const, label: 'Médio' },
                       { key: 'caro' as const, label: 'Mais caro' },
                     ] as const
                   ).map(({ key, label }) => {
@@ -212,13 +256,13 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
         {!hasRequiredFinancialInfo && (
-          <Text style={styles.confirmHint}>Informe com que trabalha e quanto recebe por mes para continuar.</Text>
+          <Text style={styles.confirmHint}>Informe com que trabalha e quanto recebe por mês para continuar.</Text>
         )}
         {hasRequiredFinancialInfo && usesStreaming === null && (
-          <Text style={styles.confirmHint}>Responda sobre streaming para habilitar a confirmacao.</Text>
+          <Text style={styles.confirmHint}>Streaming é opcional. Se não responder, vamos considerar como não.</Text>
         )}
         {hasRequiredFinancialInfo && usesStreaming === 'sim' && !canConfirm && (
-          <Text style={styles.confirmHint}>Selecione os servicos e o plano para confirmar.</Text>
+          <Text style={styles.confirmHint}>Selecione os serviços e o plano para confirmar.</Text>
         )}
       </View>
 

@@ -42,7 +42,7 @@ export default function PagamentoScreen() {
 
   const handleConfirmPayment = async () => {
     if (!paymentStatus) {
-      Alert.alert('Escolha uma opcao', 'Selecione se recebeu tudo certo, a mais ou a menos.');
+      Alert.alert('Escolha uma opção', 'Selecione se recebeu tudo certo, a mais ou a menos.');
       return;
     }
 
@@ -57,13 +57,13 @@ export default function PagamentoScreen() {
     });
 
     if (!saved) {
-      Alert.alert('Erro ao salvar', 'Nao foi possivel confirmar o pagamento agora.');
+      Alert.alert('Erro ao salvar', 'Não foi possível confirmar o pagamento agora.');
       return;
     }
 
     setPaymentStatus(null);
     setAdjustmentValue('');
-    Alert.alert('Pagamento confirmado', 'Saldo reiniciado para o proximo mes.');
+    Alert.alert('Pagamento confirmado', 'Saldo reiniciado para o próximo mês.');
   };
 
   if (onboardingLoading) {
@@ -77,12 +77,12 @@ export default function PagamentoScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} style={styles.scroll}>
       <Text style={styles.title}>Pagamento</Text>
-      <Text style={styles.subtitle}>Informe como o salario foi recebido em {activeMonthLabel}.</Text>
+      <Text style={styles.subtitle}>Informe como o salário foi recebido em {activeMonthLabel}.</Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Voce recebeu o salario corretamente?</Text>
+        <Text style={styles.cardTitle}>Você recebeu o salário corretamente?</Text>
         <Text style={styles.cardText}>
-          Escolha se o valor veio normal, se recebeu a menos ou se entrou uma bonificacao.
+          Escolha se o valor veio normal, se recebeu a menos ou se entrou uma bonificação.
         </Text>
 
         <View style={styles.options}>
@@ -92,7 +92,7 @@ export default function PagamentoScreen() {
             <Text style={[styles.optionTitle, paymentStatus === 'correto' && styles.optionTitleActive]}>
               Recebi correto
             </Text>
-            <Text style={styles.optionHint}>Sem diferenca no valor esperado.</Text>
+            <Text style={styles.optionHint}>Sem diferença no valor esperado.</Text>
           </Pressable>
 
           <Pressable
@@ -101,16 +101,16 @@ export default function PagamentoScreen() {
             <Text style={[styles.optionTitle, paymentStatus === 'menos' && styles.optionTitleWarning]}>
               Recebi a menos
             </Text>
-            <Text style={styles.optionHint}>O salario veio abaixo do esperado.</Text>
+            <Text style={styles.optionHint}>O salário veio abaixo do esperado.</Text>
           </Pressable>
 
           <Pressable
             onPress={() => handleSelectStatus('bonus')}
             style={[styles.optionButton, paymentStatus === 'bonus' && styles.optionButtonBonus]}>
             <Text style={[styles.optionTitle, paymentStatus === 'bonus' && styles.optionTitleBonus]}>
-              Recebi bonificacao
+              Recebi bonificação
             </Text>
-            <Text style={styles.optionHint}>Entrou um valor extra acima do salario.</Text>
+            <Text style={styles.optionHint}>Entrou um valor extra acima do salário.</Text>
           </Pressable>
         </View>
 
@@ -118,8 +118,8 @@ export default function PagamentoScreen() {
           <View style={styles.adjustmentBox}>
             <Text style={styles.label}>
               {paymentStatus === 'menos'
-                ? 'Quanto voce recebeu a menos?'
-                : 'Qual foi o valor da bonificacao?'}
+                ? 'Quanto você recebeu a menos?'
+                : 'Qual foi o valor da bonificação?'}
             </Text>
             <TextInput
               value={adjustmentValue}
@@ -131,22 +131,22 @@ export default function PagamentoScreen() {
             />
 
             <Text style={styles.previewText}>
-              Salario base: {formatCurrency(monthlyIncome)} | Neste mes: {formatCurrency(previewIncome)}
+              Salário base: {formatCurrency(monthlyIncome)} | Neste mês: {formatCurrency(previewIncome)}
             </Text>
           </View>
         )}
 
         {paymentStatus === 'correto' && (
-          <Text style={styles.feedback}>Tudo certo. O salario deste mes sera {formatCurrency(monthlyIncome)}.</Text>
+          <Text style={styles.feedback}>Tudo certo. O salário deste mês será {formatCurrency(monthlyIncome)}.</Text>
         )}
         {paymentStatus === 'menos' && parsedAdjustment > 0 && (
           <Text style={styles.feedbackWarning}>
-            Salario deste mes ficara {formatCurrency(previewIncome)}.
+            Salário deste mês ficará {formatCurrency(previewIncome)}.
           </Text>
         )}
         {paymentStatus === 'bonus' && parsedAdjustment > 0 && (
           <Text style={styles.feedbackBonus}>
-            Bonificacao somada neste mes: {formatCurrency(previewIncome)}.
+            Bonificação somada neste mês: {formatCurrency(previewIncome)}.
           </Text>
         )}
 

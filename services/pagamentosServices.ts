@@ -14,7 +14,7 @@ type NewPaymentRecord = {
 export const adicionarPagamento = async (pagamento: NewPaymentRecord) => {
   const user = auth.currentUser;
   if (!user) {
-    throw new Error('Usuario nao autenticado');
+    throw new Error('Usuário não autenticado');
   }
 
   await addDoc(collection(db, 'users', user.uid, 'pagamentos'), {

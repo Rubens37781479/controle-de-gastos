@@ -20,10 +20,20 @@ function getPerfilRef() {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Usuario nao autenticado');
+    throw new Error('Usuário não autenticado');
   }
 
   return doc(db, 'users', user.uid, 'perfil', 'financeiro');
+}
+
+function getLegacyUserRef() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  return doc(db, 'users', user.uid);
 }
 
 function normalizePerfil(data: any): PerfilFinanceiro {
@@ -55,9 +65,15 @@ export const buscarPerfilFinanceiro = async (): Promise<PerfilFinanceiro | null>
 
   const snapshot = await getDoc(getPerfilRef());
 
-  if (!snapshot.exists()) return null;
+  if (snapshot.exists()) {
+    return normalizePerfil(snapshot.data());
+  }
 
-  return normalizePerfil(snapshot.data());
+  const legacySnapshot = await getDoc(getLegacyUserRef());
+
+  if (!legacySnapshot.exists()) return null;
+
+  return normalizePerfil(legacySnapshot.data());
 };
 
 export const salvarPerfilFinanceiro = async (perfil: PerfilFinanceiroInput) => {
@@ -75,7 +91,7 @@ export const salvarFotoPerfil = async (uri: string): Promise<string> => {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Usuario nao autenticado');
+    throw new Error('Usuário não autenticado');
   }
 
   if (uri.startsWith('http://') || uri.startsWith('https://')) {

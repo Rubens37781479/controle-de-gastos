@@ -20,24 +20,85 @@ function formatMonthYear(date: Date): string {
   return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
 }
 
-function formatDay(date: Date): string {
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+function getDayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
+
+function formatDayHeader(date: Date): string {
+  const day = date.toLocaleDateString('pt-BR', { day: '2-digit' });
+  const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+  return `${day} - ${weekday}`;
+}
+
+function formatCategoryName(category: string): string {
+  const normalized = category.trim().toLowerCase();
+  if (normalized === 'alimentacao' || normalized === 'alimento') return 'Alimentação';
+  if (normalized === 'conta de agua') return 'Conta de água';
+  if (normalized === 'veiculos' || normalized === 'veiculo') return 'Veículos';
+  if (normalized === 'emergencia') return 'Emergência';
+  return category;
+}
+
+type ExpenseWithDate = Expense & { parsedDate: Date };
+
+type DailyExpenseGroup = {
+  key: string;
+  label: string;
+  total: number;
+  expenses: ExpenseWithDate[];
+};
 
 type MonthlyGroup = {
   key: string;
   label: string;
   total: number;
-  expenses: (Expense & { parsedDate: Date })[];
+  expenses: ExpenseWithDate[];
+  dailyGroups: DailyExpenseGroup[];
   paymentRecords: PaymentRecord[];
 };
+
+type StatementRow =
+  | { type: 'month'; key: string; month: MonthlyGroup; expanded: boolean }
+  | { type: 'payment'; key: string; record: PaymentRecord }
+  | { type: 'day'; key: string; label: string }
+  | { type: 'expense'; key: string; expense: ExpenseWithDate };
+
+function groupExpensesByDay(expenses: ExpenseWithDate[]): DailyExpenseGroup[] {
+  const grouped = new Map<string, DailyExpenseGroup>();
+
+  for (const expense of expenses) {
+    const key = getDayKey(expense.parsedDate);
+    const current = grouped.get(key);
+
+    if (!current) {
+      grouped.set(key, {
+        key,
+        label: formatDayHeader(expense.parsedDate),
+        total: expense.amount,
+        expenses: [expense],
+      });
+      continue;
+    }
+
+    current.total += expense.amount;
+    current.expenses.push(expense);
+  }
+
+  return [...grouped.values()]
+    .map((group) => ({
+      ...group,
+      total: Math.round(group.total * 100) / 100,
+      expenses: [...group.expenses].sort((a, b) => b.parsedDate.getTime() - a.parsedDate.getTime()),
+    }))
+    .sort((a, b) => b.key.localeCompare(a.key));
+}
 
 export default function ExtratoScreen() {
   const { onboardingCompleted, onboardingLoading, expenses, paymentRecords } = useFinance();
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
 
   const monthlyStatement = useMemo<MonthlyGroup[]>(() => {
-    const grouped = new Map<string, MonthlyGroup>();
+    const grouped = new Map<string, Omit<MonthlyGroup, 'dailyGroups'>>();
 
     for (const expense of expenses) {
       const parsedDate = getExpenseDate(expense.createdAt);
@@ -80,14 +141,19 @@ export default function ExtratoScreen() {
     }
 
     return [...grouped.values()]
-      .map((group) => ({
-        ...group,
-        total: Math.round(group.total * 100) / 100,
-        expenses: [...group.expenses].sort(
+      .map((group) => {
+        const sortedExpenses = [...group.expenses].sort(
           (a, b) => b.parsedDate.getTime() - a.parsedDate.getTime(),
-        ),
-        paymentRecords: [...group.paymentRecords].sort((a, b) => b.createdAt - a.createdAt),
-      }))
+        );
+
+        return {
+          ...group,
+          total: Math.round(group.total * 100) / 100,
+          expenses: sortedExpenses,
+          dailyGroups: groupExpensesByDay(sortedExpenses),
+          paymentRecords: [...group.paymentRecords].sort((a, b) => b.createdAt - a.createdAt),
+        };
+      })
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [expenses, paymentRecords]);
 
@@ -104,6 +170,38 @@ export default function ExtratoScreen() {
     );
   }, [monthlyStatement]);
 
+  const statementRows = useMemo<StatementRow[]>(() => {
+    const rows: StatementRow[] = [];
+
+    for (const month of monthlyStatement) {
+      const expanded = expandedMonthKey === month.key;
+      rows.push({ type: 'month', key: `month-${month.key}`, month, expanded });
+
+      if (!expanded) continue;
+
+      for (const record of month.paymentRecords) {
+        rows.push({ type: 'payment', key: `payment-${record.id}`, record });
+      }
+
+      for (const dayGroup of month.dailyGroups) {
+        rows.push({ type: 'day', key: `day-${month.key}-${dayGroup.key}`, label: dayGroup.label });
+
+        for (const expense of dayGroup.expenses) {
+          rows.push({ type: 'expense', key: `expense-${expense.id}`, expense });
+        }
+      }
+    }
+
+    return rows;
+  }, [expandedMonthKey, monthlyStatement]);
+
+  const stickyHeaderIndices = useMemo(
+    () => statementRows
+      .map((row, index) => (row.type === 'day' ? index + 2 : -1))
+      .filter((index) => index >= 0),
+    [statementRows],
+  );
+
   if (onboardingLoading) {
     return null;
   }
@@ -112,10 +210,40 @@ export default function ExtratoScreen() {
     return <Redirect href="/(tabs)" />;
   }
 
+  const renderPaymentRow = (record: PaymentRecord) => {
+    const isBonus = record.status === 'bonus';
+    const isLess = record.status === 'menos';
+    const title = isBonus
+      ? 'Pagamento com bonificação'
+      : isLess
+        ? 'Pagamento recebido a menos'
+        : 'Pagamento recebido corretamente';
+    const amountLabel = isBonus
+      ? `+ ${formatCurrency(record.amount)}`
+      : isLess
+        ? `- ${formatCurrency(record.amount)}`
+        : formatCurrency(record.incomeForMonth);
+
+    return (
+      <View style={styles.paymentRow}>
+        <View style={styles.expenseTextWrap}>
+          <Text style={styles.expenseDescription}>{title}</Text>
+          <Text style={styles.expenseMeta}>Salário do mês: {formatCurrency(record.incomeForMonth)}</Text>
+        </View>
+        <Text style={[styles.expenseAmount, isBonus && styles.positiveAmount, isLess && styles.negativeAmount]}>
+          {amountLabel}
+        </Text>
+      </View>
+    );
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.container} style={styles.scroll}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      stickyHeaderIndices={stickyHeaderIndices}
+      style={styles.scroll}>
       <Text style={styles.title}>Extrato</Text>
-      <Text style={styles.subtitle}>Veja por mes e ano tudo o que foi salvo no seu controle.</Text>
+      <Text style={styles.subtitle}>Veja por mês e ano tudo o que foi salvo no seu controle.</Text>
 
       {monthlyStatement.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -123,75 +251,50 @@ export default function ExtratoScreen() {
           <Text style={styles.emptyText}>Adicione gastos ou confirme um pagamento para montar o extrato mensal.</Text>
         </View>
       ) : (
-        monthlyStatement.map((month) => {
-          const isExpanded = expandedMonthKey === month.key;
-
-          return (
-            <View key={month.key} style={styles.monthCard}>
+        statementRows.map((row) => {
+          if (row.type === 'month') {
+            return (
               <Pressable
-                onPress={() => setExpandedMonthKey((current) => (current === month.key ? null : month.key))}
-                style={styles.monthHeader}>
+                key={row.key}
+                onPress={() => setExpandedMonthKey((current) => (current === row.month.key ? null : row.month.key))}
+                style={[styles.monthHeader, row.expanded && styles.monthHeaderExpanded]}>
                 <View style={styles.monthHeaderText}>
-                  <Text style={styles.monthLabel}>{month.label}</Text>
+                  <Text style={styles.monthLabel}>{row.month.label}</Text>
                   <Text style={styles.monthMeta}>
-                    {month.expenses.length} gasto(s) e {month.paymentRecords.length} pagamento(s)
+                    {row.month.expenses.length} gasto(s) e {row.month.paymentRecords.length} pagamento(s)
                   </Text>
                 </View>
                 <View style={styles.monthHeaderSide}>
-                  <Text style={styles.monthTotal}>{formatCurrency(month.total)}</Text>
-                  <Text style={styles.monthToggle}>{isExpanded ? 'Ocultar' : 'Ver gastos'}</Text>
+                  <Text style={styles.monthTotal}>{formatCurrency(row.month.total)}</Text>
+                  <Text style={styles.monthToggle}>{row.expanded ? 'Ocultar' : 'Ver gastos'}</Text>
                 </View>
               </Pressable>
+            );
+          }
 
-              {isExpanded && (
-                <View style={styles.expenseList}>
-                  {month.paymentRecords.map((record) => {
-                    const isBonus = record.status === 'bonus';
-                    const isLess = record.status === 'menos';
-                    const title = isBonus
-                      ? 'Pagamento com bonificacao'
-                      : isLess
-                        ? 'Pagamento recebido a menos'
-                        : 'Pagamento recebido corretamente';
-                    const amountLabel = isBonus
-                      ? `+ ${formatCurrency(record.amount)}`
-                      : isLess
-                        ? `- ${formatCurrency(record.amount)}`
-                        : formatCurrency(record.incomeForMonth);
+          if (row.type === 'payment') {
+            return <View key={row.key} style={styles.cardRow}>{renderPaymentRow(row.record)}</View>;
+          }
 
-                    return (
-                      <View key={record.id} style={styles.expenseRow}>
-                        <View style={styles.expenseTextWrap}>
-                          <Text style={styles.expenseDescription}>{title}</Text>
-                          <Text style={styles.expenseMeta}>
-                            Salario do mes: {formatCurrency(record.incomeForMonth)}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.expenseAmount,
-                            isBonus && styles.positiveAmount,
-                            isLess && styles.negativeAmount,
-                          ]}>
-                          {amountLabel}
-                        </Text>
-                      </View>
-                    );
-                  })}
-
-                  {month.expenses.map((expense) => (
-                    <View key={expense.id} style={styles.expenseRow}>
-                      <View style={styles.expenseTextWrap}>
-                        <Text style={styles.expenseDescription}>{expense.description}</Text>
-                        <Text style={styles.expenseMeta}>
-                          {expense.category} - {formatDay(expense.parsedDate)}
-                        </Text>
-                      </View>
-                      <Text style={styles.expenseAmount}>{formatCurrency(expense.amount)}</Text>
-                    </View>
-                  ))}
+          if (row.type === 'day') {
+            return (
+              <View key={row.key} style={styles.dayStickyWrap}>
+                <View style={styles.dayDivider}>
+                  <Text style={styles.dayDividerText}>{row.label}</Text>
                 </View>
-              )}
+              </View>
+            );
+          }
+
+          return (
+            <View key={row.key} style={styles.cardRow}>
+              <View style={styles.expenseRow}>
+                <View style={styles.expenseTextWrap}>
+                  <Text style={styles.expenseDescription}>{row.expense.description}</Text>
+                  <Text style={styles.expenseMeta}>{formatCategoryName(row.expense.category)}</Text>
+                </View>
+                <Text style={styles.expenseAmount}>{formatCurrency(row.expense.amount)}</Text>
+              </View>
             </View>
           );
         })
@@ -209,7 +312,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 32,
     backgroundColor: '#F6F7F3',
-    gap: 14,
   },
   title: {
     color: '#0B2E23',
@@ -219,6 +321,8 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#40534D',
     fontSize: 14,
+    marginTop: 10,
+    marginBottom: 14,
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',
@@ -237,20 +341,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
   },
-  monthCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#D9DEE8',
-    overflow: 'hidden',
-  },
   monthHeader: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    backgroundColor: '#F9FBFD',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D9DEE8',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    borderWidth: 1,
+    marginTop: 12,
+    zIndex: 12,
+  },
+  monthHeaderExpanded: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   monthHeaderText: {
     flex: 1,
@@ -279,9 +388,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  expenseList: {
+  cardRow: {
+    backgroundColor: '#FFFFFF',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#D9DEE8',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F7',
+  },
+  dayStickyWrap: {
+    backgroundColor: '#F6F7F3',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#D9DEE8',
+    paddingHorizontal: 0,
+    zIndex: 10,
+  },
+  dayDivider: {
+    alignItems: 'center',
+    backgroundColor: '#DDEFE8',
+    borderBottomColor: '#C5DED3',
+    borderBottomWidth: 1,
+    borderTopColor: '#C5DED3',
+    borderTopWidth: 1,
+    paddingVertical: 6,
+  },
+  dayDividerText: {
+    color: '#0B2E23',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'lowercase',
   },
   expenseRow: {
     flexDirection: 'row',
